@@ -2,16 +2,18 @@ import os
 import random
 import string
 from flask import Flask, request, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 import requests
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 TELEGRAM_TOKEN = "8854508747:AAGP-bcbVFhzYZYteVpJzK3IV0zmFJIkHmw"
 
 user_mails = {}
 
 def send_telegram_with_keyboard(chat_id, text):
-    url = f"https://telegram.org{TELEGRAM_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text,
@@ -93,6 +95,10 @@ def handle_telegram_webhook():
         return jsonify({"status": "success"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    return jsonify({"status": "running"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
