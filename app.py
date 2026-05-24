@@ -31,7 +31,6 @@ def handle_telegram_webhook():
         try:
             data = request.json
             
-            # 1. BREVO'DAN GELEN MAILLERİ YAKALAMA
             if data and 'Sender' in data and 'Subject' in data:
                 sender = data.get('Sender', {}).get('Address', 'Unknown Sender')
                 subject = data.get('Subject', 'No Subject')
@@ -51,7 +50,6 @@ def handle_telegram_webhook():
                         send_telegram_with_keyboard(cid, telegram_message)
                 return jsonify({"status": "success"}), 200
 
-            # 2. TELEGRAM'DAN GELEN MESAJLARI YAKALAMA
             if data and "message" in data:
                 chat_id = str(data["message"]["chat"]["id"])
                 text = data["message"].get("text", "")
