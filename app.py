@@ -7,14 +7,13 @@ import requests
 app = Flask(__name__)
 
 TELEGRAM_TOKEN = "8854508747:AAGP-bcbVFhzYZYteVpJzK3IV0zmFJIkHmw"
-CHAT_ID = "8486336204"
 
 user_mails = {}
 
-def send_telegram_with_keyboard(text):
+def send_telegram_with_keyboard(chat_id, text):
     url = f"https://telegram.org{TELEGRAM_TOKEN}/sendMessage"
     payload = {
-        "chat_id": CHAT_ID,
+        "chat_id": chat_id,
         "text": text,
         "parse_mode": "Markdown",
         "reply_markup": {
@@ -41,16 +40,16 @@ def handle_inbound_email():
         to_list = data.get('To', [])
         recipient = to_list.get('Address', '').lower() if to_list else ''
         
-        active_mail = user_mails.get(CHAT_ID, "").lower()
-        if active_mail and recipient == active_mail:
-            telegram_message = (
-                f"📩 *New Email Received!*\n\n"
-                f"*To:* `{recipient}`\n"
-                f"*From:* {sender}\n"
-                f"*Subject:* {subject}\n\n"
-                f"*Message / Code:* \n{body}"
-            )
-            send_telegram_with_keyboard(telegram_message)
+        for cid, active_mail in user_mails.items():
+            if active_mail and recipient == active_mail.lower():
+                telegram_message = (
+                    f"📩 *New Email Received!*\n\n"
+                    f"*To:* `{recipient}`\n"
+                    f"*From:* {sender}\n"
+                    f"*Subject:* {subject}\n\n"
+                    f"*Message / Code:* \n{body}"
+                )
+                send_telegram_with_keyboard(cid, telegram_message)
         
         return jsonify({"status": "success"}), 200
     except Exception as e:
@@ -64,35 +63,32 @@ def handle_telegram_webhook():
             chat_id = str(data["message"]["chat"]["id"])
             text = data["message"].get("text", "")
 
-            if chat_id != CHAT_ID:
-                return jsonify({"status": "ignored"}), 200
-
             if text == "/start":
                 welcome_text = (
                     "👋 *Fake Mail Bot Welcome!*\n\n"
                     "Use buttons below to generate a temporary email address.\n\n"
                     "👇 Press *📧 Generate* to start!"
                 )
-                send_telegram_with_keyboard(welcome_text)
+                send_telegram_with_keyboard(chat_id, welcome_text)
 
             elif text == "📧 Generate" or text == "/generate":
                 random_name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
                 generated_email = f"{random_name}@pusheralsat.xyz"
-                user_mails[CHAT_ID] = generated_email
+                user_mails[chat_id] = generated_email
                 
                 msg = (
                     f"🎲 *Your Temporary Email Address:*\n\n"
                     f"`{generated_email}`\n\n"
                     f"Click to copy. All validation codes and emails will arrive here instantly."
                 )
-                send_telegram_with_keyboard(msg)
+                send_telegram_with_keyboard(chat_id, msg)
 
             elif text == "❌ Delete current email" or text == "/sil":
-                if CHAT_ID in user_mails:
-                    del user_mails[CHAT_ID]
-                    send_telegram_with_keyboard("❌ Current email address deleted successfully.")
+                if chat_id in user_mails:
+                    del user_mails[chat_id]
+                    send_telegram_with_keyboard(chat_id, "❌ Current email address deleted successfully.")
                 else:
-                    send_telegram_with_keyboard("⚠️ You don't have an active email address.")
+                    send_telegram_with_keyboard(chat_id, "⚠️ You don't have an active email address.")
 
         return jsonify({"status": "success"}), 200
     except Exception as e:
